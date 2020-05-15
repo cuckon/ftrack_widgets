@@ -1,5 +1,6 @@
-from Qt import QtWidgets, QtGui, QtCore
-from Qt.QtCore import QModelIndex, Qt
+import six
+from PyQt5 import QtWidgets, QtGui, QtCore
+from PyQt5.QtCore import QModelIndex, Qt
 
 from .thread import QFtrackQuery
 
@@ -10,7 +11,7 @@ def repr_entity(val):
     if val is None:
         return ''
 
-    if isinstance(val, basestring):
+    if isinstance(val, six.string_types):
         return val
 
     if 'name' in val:
@@ -19,11 +20,9 @@ def repr_entity(val):
     return str(val)
 
 
-class ItemData(QtCore.QObject):
+class ItemData:
     ROLE_DATA = QtCore.Qt.UserRole + 100
-    ROLE_ENTITY_ID = ROLE_DATA + 1
-    fetchStarted = QtCore.Signal()
-    loaded = QtCore.Signal()
+    ROLE_ENTITY = ROLE_DATA + 1
 
     def __init__(self, query, item, fields):
         super(ItemData, self).__init__()
@@ -38,8 +37,6 @@ class ItemData(QtCore.QObject):
         self._session = query._session
         self._query_thread = QFtrackQuery()
         self._query_thread.responsed.connect(self._append_results)
-
-        self._ = []
 
 
     def _append_results(self, results):
@@ -60,29 +57,27 @@ class ItemData(QtCore.QObject):
                 self.query._page_size,
             )
 
-            # _ is necessary to protect it from being auto released by Qt
-            self._.append(ItemData(query, items[0], self.fields))
+            ItemData(query, items[0], self.fields)
 
-            items[0].setData(entity['id'], self.ROLE_ENTITY_ID)
+            items[0].setData(entity, self.ROLE_ENTITY)
             self.item.appendRow(items)
 
         if self.query._can_fetch_more():
             self.item.appendRow(QtGui.QStandardItem('...'))
 
-        self.loaded.emit()
 
     def fetch(self):
         self.fetched = True
-        self.fetchStarted.emit()
 
         if not self.query._can_fetch_more():
-            self.loaded.emit()
             return
 
         self._query_thread.do(self.query)
 
 
 class QFtrackModel(QtGui.QStandardItemModel):
+    error = QtCore.pyqtSignal(str)
+
     def __init__(self, session, page_size=DEFAULT_PAGE_SIZE, fields=None,
                  parent=None):
         super(QFtrackModel, self).__init__(parent)
@@ -92,8 +87,13 @@ class QFtrackModel(QtGui.QStandardItemModel):
         self._root_data = None
 
     def query(self, expression):
+        self.clear()
         # TODO: projection
-        query = self._session.query(expression, self._page_size)
+        try:
+            query = self._session.query(expression, self._page_size)
+        except:
+            self.error.emit('Invalid query expression.')
+            return
         self._root_data = ItemData(query, self.invisibleRootItem(), self._fields)
         self._root_data.fetch()
 
@@ -135,15 +135,19 @@ class QFtrackModel(QtGui.QStandardItemModel):
 
     def entity(self, index):
         """Returns the entity at given *index*."""
-        entity_id = self.data(index, ItemData.ROLE_ENTITY_ID)
-        return entity_id and self._session.get('Context', entity_id)
+        index = self._dataIndex(index)
+        return self.data(index, ItemData.ROLE_ENTITY)
 
     def _loadMore(self, index):
         data = self.data(index, ItemData.ROLE_DATA)
         data and data.fetch()
 
+    def _dataIndex(self, index):
+        return self.index(index.row(), 0, index.parent())
+
     def itemActived(self, index):
         """Load more unloaded entities."""
+        index = self._dataIndex(index)
         data = self.data(index, ItemData.ROLE_DATA)
         if data:
             return
@@ -153,7 +157,6 @@ class QFtrackModel(QtGui.QStandardItemModel):
             self._loadMore(index_parent)
         else:
             self._root_data.fetch()
-
 
 
 class QEntityModel(QFtrackModel):
@@ -175,13 +178,12 @@ class QEntityModel(QFtrackModel):
         self._entity = entity
 
 
-
 class QFtrackSortProxy(QtCore.QSortFilterProxyModel):
-    def loadMore(self, index):
+    def itemActived(self, index):
         """Load more unloaded entities."""
         return self.sourceModel().itemActived(index)
 
-    def setEntity(self, entity):
+    def setCurrentEntity(self, entity):
         """Set the entity the for model to work on."""
         return self.sourceModel().setCurrentEntity(entity)
 

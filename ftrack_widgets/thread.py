@@ -9,7 +9,8 @@ class QFtrackQuery(QtCore.QThread):
         super(QFtrackQuery, self).__init__(parent)
 
     def do(self, query):
-        self.terminate()
+        if self.isRunning():
+            self.terminate()
         self._query = query
         self.fetchMore()
 

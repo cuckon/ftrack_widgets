@@ -1,7 +1,9 @@
 import os
+import json
+from functools import lru_cache
 
 import ftrack_api
-from Qt import QtWidgets, QtGui
+from PyQt5 import QtWidgets, QtGui
 
 from ftrack_widgets import model
 
@@ -49,13 +51,13 @@ class DemoDialog(QtWidgets.QDialog):
 
     def _make_tree(self):
         selector = QtWidgets.QTreeView()
-        proj_model = model.QEntityModel(fields=['full_name', 'description'])
+        proj_model = model.QEntityModel(fields=['name', 'description'])
         selector.setModel(proj_model)
         return selector
 
     def _make_result_selector(self):
         selector = QtWidgets.QListView()
-        proj_model = model.QFtrackModel(self.session, fields=['full_name'])
+        proj_model = model.QFtrackModel(self.session, fields=['name'])
         selector.setModel(proj_model)
         return selector
 
@@ -69,11 +71,14 @@ class DemoDialog(QtWidgets.QDialog):
 
     def on_change_selection(self, index):
         entity = self.result_selector.model().entity(index)
-        self.treeview.model().setCurrentEntity(entity)
+        if entity:
+            self.treeview.model().setCurrentEntity(entity)
 
     def _connect(self):
         self.searcher.returnPressed.connect(self.on_search)
         self.result_selector.clicked.connect(self.on_change_selection)
+        self.result_selector.clicked.connect(self.result_selector.model().itemActived)
+        self.treeview.clicked.connect(self.treeview.model().itemActived)
 
 
 

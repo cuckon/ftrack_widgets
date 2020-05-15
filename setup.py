@@ -7,6 +7,7 @@ setup(
     install_requires=[
         'PyQt5>=5.14.1',
         'Qt.py',
+        'six',
         'ftrack-python-api>=2.0.0rc2',
     ],
     author='John Su',

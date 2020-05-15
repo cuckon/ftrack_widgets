@@ -27,8 +27,8 @@ def init_session():
 
 def test_model():
     session = init_session()
-    proj = session.get('Folder', '07ab83ba-e269-11e9-b552-6891d061ca70')
-    model = QEntityModel(proj, 20, ['name', 'id', 'type'])
+    proj = session.query('Project where name is lyao').one()
+    model = QEntityModel(proj, 2, ['name', 'id', 'type'])
     widget = QtWidgets.QTreeView()
     widget.setModel(model)
     widget.clicked.connect(model.itemActived)
