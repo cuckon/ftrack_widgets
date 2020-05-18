@@ -1,7 +1,7 @@
 import os
 import json
 
-import ftrack_api
+import nqt
 
 from Qt import QtWidgets, QtGui
 
@@ -16,12 +16,8 @@ def _get_variables():
 
 
 def init_session():
-    variables = _get_variables()
-
-    server_url = variables['FTRACK_SERVER']
-    user = variables['FTRACK_USER']
-    key = variables['FTRACK_API_KEY']
-    return ftrack_api.Session(server_url, key, user)
+    import nftrack
+    return nftrack.load_session()
 
 
 class DemoDialog(QtWidgets.QDialog):

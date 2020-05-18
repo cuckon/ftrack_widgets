@@ -57,7 +57,7 @@ class ItemData(object):
 
             ItemData(query, items[0], self.fields)
 
-            items[0].setData(entity, self.ROLE_ENTITY)
+            items[0].entity = entity
             self.item.appendRow(items)
 
         if self.query._can_fetch_more():
@@ -133,8 +133,7 @@ class QFtrackModel(QtGui.QStandardItemModel):
 
     def entity(self, index):
         """Returns the entity at given *index*."""
-        index = self._dataIndex(index)
-        return self.data(index, ItemData.ROLE_ENTITY)
+        return getattr(self.itemFromIndex(index), 'entity', None)
 
     def _loadMore(self, index):
         data = self.data(index, ItemData.ROLE_DATA)
