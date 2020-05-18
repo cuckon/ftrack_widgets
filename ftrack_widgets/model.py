@@ -1,6 +1,6 @@
 import six
-from PyQt5 import QtWidgets, QtGui, QtCore
-from PyQt5.QtCore import QModelIndex, Qt
+from Qt import QtWidgets, QtGui, QtCore
+from Qt.QtCore import QModelIndex, Qt
 
 from .thread import QFtrackQuery
 
@@ -20,13 +20,11 @@ def repr_entity(val):
     return str(val)
 
 
-class ItemData:
+class ItemData(object):
     ROLE_DATA = QtCore.Qt.UserRole + 100
     ROLE_ENTITY = ROLE_DATA + 1
 
     def __init__(self, query, item, fields):
-        super(ItemData, self).__init__()
-
         item.setData(self, self.ROLE_DATA)
 
         self.item = item
@@ -76,7 +74,7 @@ class ItemData:
 
 
 class QFtrackModel(QtGui.QStandardItemModel):
-    error = QtCore.pyqtSignal(str)
+    error = QtCore.Signal(str)
 
     def __init__(self, session, page_size=DEFAULT_PAGE_SIZE, fields=None,
                  parent=None):

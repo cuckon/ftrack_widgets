@@ -5,10 +5,10 @@ setup(
     version='0.0.2',
     packages=['ftrack_widgets'],
     install_requires=[
-        'PyQt5>=5.14.1',
         'Qt.py',
         'six',
         'ftrack-python-api>=2.0.0rc2',
+        'requests',
     ],
     author='John Su',
     author_email='',
