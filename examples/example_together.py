@@ -1,14 +1,13 @@
 import os
 import json
-from functools import lru_cache
 
 import ftrack_api
-from PyQt5 import QtWidgets, QtGui
+
+from Qt import QtWidgets, QtGui
 
 from ftrack_widgets import model
 
 
-@lru_cache()
 def _get_variables():
     variables_path = os.path.join(os.path.dirname(__file__), 'ftrack_variables.json')
     with open(variables_path) as f:
