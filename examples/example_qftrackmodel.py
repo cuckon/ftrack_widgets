@@ -5,7 +5,7 @@ from functools import lru_cache
 import ftrack_api
 
 from Qt import QtWidgets, QtGui
-from ftrack_widgets.model import QFtrackModel, QEntityModel
+from ftrack_widgets.model import GeneralModel, EntityModel
 
 
 @lru_cache()
@@ -28,7 +28,7 @@ def init_session():
 def test_model():
     session = init_session()
     proj = session.query('Project where name is lyao').one()
-    model = QEntityModel(proj, 2, ['name', 'id', 'type'])
+    model = EntityModel(proj, 2, ['name', 'id', 'type'])
     widget = QtWidgets.QTreeView()
     widget.setModel(model)
     widget.clicked.connect(model.itemActived)

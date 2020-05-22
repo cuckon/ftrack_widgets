@@ -37,23 +37,46 @@ class DemoDialog(QtWidgets.QDialog):
 
         self.treeview = self._make_tree()
 
+        self.component_view = self._make_component_view()
+
         hlay = QtWidgets.QHBoxLayout()
         hlay.addLayout(lay_1)
         hlay.addWidget(self.treeview)
+        hlay.addWidget(self.component_view)
 
         self.setLayout(hlay)
         self._connect()
 
+    def _update_components(self, selector_index):
+        entity = self.treeview.model().entity(selector_index)
+        if entity.entity_type == 'Task':
+            self.component_view.model().query(
+                'AssetVersion where task_id is %s' % entity['id']
+            )
+
+    def _make_component_view(self):
+        table = QtWidgets.QTableView()
+        component_model = model.GeneralModel(
+            self.session, fields=['name', 'comment']
+        )
+        table.setModel(component_model)
+        # component_model
+        # selector.setModel(proj_model)
+        return table
+
     def _make_tree(self):
         selector = QtWidgets.QTreeView()
-        proj_model = model.QEntityModel(fields=['name', 'description'])
+        proj_model = model.EntityModel(fields=['name', 'description'])
         selector.setModel(proj_model)
+        selector.clicked.connect(self._update_components)
+
         return selector
 
     def _make_result_selector(self):
         selector = QtWidgets.QListView()
-        proj_model = model.QFtrackModel(self.session, fields=['name'])
+        proj_model = model.GeneralModel(self.session, fields=['name'])
         selector.setModel(proj_model)
+
         return selector
 
     def _make_general_searcher(self):

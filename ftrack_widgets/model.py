@@ -2,22 +2,35 @@ import six
 from Qt import QtWidgets, QtGui, QtCore
 from Qt.QtCore import QModelIndex, Qt
 
-from .thread import QFtrackQuery
+from .thread import QueryThread
 
 DEFAULT_PAGE_SIZE = 20
 
 
-def repr_entity(val):
-    if val is None:
+def repr_entity(entity, attr):
+    if attr == 'name' and entity.entity_type == 'AssetVersion':
+        return '%s.v%03d' % (entity['asset']['name'], entity['version'])
+
+    value = entity.get(attr)
+    if value is None:
         return ''
 
-    if isinstance(val, six.string_types):
-        return val
+    if isinstance(value, six.string_types):
+        return value
 
-    if 'name' in val:
-        return val['name']
+    if 'name' in value:
+        return value['name']
 
-    return str(val)
+
+    return str(value)
+
+
+def query_children_exp(entity):
+    query_pattern = {
+        'Task': 'AssetVersion where task_id is %s',
+        'AssetVersion': 'Component where version_id is %s',
+    }.get(entity.entity_type, 'Context where parent_id is %s')
+    return query_pattern % entity['id']
 
 
 class ItemData(object):
@@ -33,8 +46,9 @@ class ItemData(object):
         self.query = query
 
         self._session = query._session
-        self._query_thread = QFtrackQuery()
+        self._query_thread = QueryThread()
         self._query_thread.responsed.connect(self._append_results)
+
 
 
     def _append_results(self, results):
@@ -47,11 +61,12 @@ class ItemData(object):
 
         for entity in results:
             items = [
-                QtGui.QStandardItem(repr_entity(entity.get(field)))
+                QtGui.QStandardItem(repr_entity(entity, field))
                 for field in self.fields
             ]
+
             query = self.query._session.query(
-                'Context where parent_id is ' + entity['id'],
+                query_children_exp(entity),
                 self.query._page_size,
             )
 
@@ -71,14 +86,18 @@ class ItemData(object):
             return
 
         self._query_thread.do(self.query)
+        
+    def __del__(self):
+        if self._query_thread.isRunning():
+            self._query_thread.terminate()
 
 
-class QFtrackModel(QtGui.QStandardItemModel):
+class GeneralModel(QtGui.QStandardItemModel):
     error = QtCore.Signal(str)
 
     def __init__(self, session, page_size=DEFAULT_PAGE_SIZE, fields=None,
                  parent=None):
-        super(QFtrackModel, self).__init__(parent)
+        super(GeneralModel, self).__init__(parent)
         self._session = session
         self._page_size = page_size
         self._fields = fields or ['name', 'description']
@@ -129,7 +148,7 @@ class QFtrackModel(QtGui.QStandardItemModel):
         if not entity:
             return False
 
-        return entity.entity_type != 'Task'
+        return 'Component' not in entity.entity_type
 
     def entity(self, index):
         """Returns the entity at given *index*."""
@@ -156,23 +175,21 @@ class QFtrackModel(QtGui.QStandardItemModel):
             self._root_data.fetch()
 
 
-class QEntityModel(QFtrackModel):
+class EntityModel(GeneralModel):
     def __init__(self, entity=None, page_size=DEFAULT_PAGE_SIZE, fields=None, parent=None):
-        super(QEntityModel, self).__init__(
+        super(EntityModel, self).__init__(
             entity and entity.session,
             page_size,
             fields,
             parent
         )
-        self._entity = entity
         if entity:
             self.setCurrentEntity(entity)
 
     def setCurrentEntity(self, entity):
         """Set the entity the for model to work on."""
         self._session = entity.session
-        self.query('Context where parent_id is ' + entity['id'])
-        self._entity = entity
+        self.query(query_children_exp(entity))
 
 
 class QFtrackSortProxy(QtCore.QSortFilterProxyModel):
