@@ -1,12 +1,12 @@
 from Qt import QtCore
 
 
-class QFtrackQuery(QtCore.QThread):
+class QueryThread(QtCore.QThread):
     responsed = QtCore.Signal(list)
 
     def __init__(self, parent=None):
         self._query = None
-        super(QFtrackQuery, self).__init__(parent)
+        super(QueryThread, self).__init__(parent)
 
     def do(self, query):
         if self.isRunning():
@@ -28,3 +28,7 @@ class QFtrackQuery(QtCore.QThread):
             self.responsed.emit(self._query._results[next_offset:])
         else:
             self.responsed.emit([])
+#
+#
+# class ThumbnailThread(QtCore.QThread):
+#     def
