@@ -26,7 +26,7 @@ def task_status_icon(status):
 def entity_type_icon(entity):
     icon_name = {
         'Shot': 'fa.video-camera',
-        'AssetBuild': 'ei.home',
+        'AssetBuild': 'mdi.tree',
         'Folder': 'fa.folder',
     }.get(entity.entity_type)
     return icon_name and qtawesome.icon(icon_name, color='gray')
