@@ -1,3 +1,7 @@
+## #@#
+import sys
+sys.path.insert(0, r'D:\code-test\ftrack_widgets')
+
 import os
 import json
 
@@ -56,7 +60,7 @@ class DemoDialog(QtWidgets.QDialog):
 
     def _make_component_view(self):
         table = QtWidgets.QTableView()
-        component_model = model.GeneralModel(
+        component_model = model.QueryModel(
             self.session, fields=['name', 'comment']
         )
         table.setModel(component_model)
@@ -74,7 +78,7 @@ class DemoDialog(QtWidgets.QDialog):
 
     def _make_result_selector(self):
         selector = QtWidgets.QListView()
-        proj_model = model.GeneralModel(self.session, fields=['name'])
+        proj_model = model.QueryModel(self.session, fields=['name'])
         selector.setModel(proj_model)
 
         return selector

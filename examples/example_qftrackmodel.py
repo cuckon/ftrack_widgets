@@ -5,7 +5,7 @@ from functools import lru_cache
 import ftrack_api
 
 from Qt import QtWidgets, QtGui
-from ftrack_widgets.model import GeneralModel, EntityModel
+from ftrack_widgets.model import QueryModel, EntityModel
 
 
 @lru_cache()

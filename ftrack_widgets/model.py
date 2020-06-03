@@ -33,6 +33,28 @@ def query_children_exp(entity):
     return query_pattern % entity['id']
 
 
+def append_entities(entities, item, fields, page_size):
+    if not entities:
+        return
+    session = entities[0].session
+
+    for entity in entities:
+        items = [
+            QtGui.QStandardItem(repr_entity(entity, field))
+            for field in fields
+        ]
+
+        query = session.query(
+            query_children_exp(entity),
+            page_size,
+        )
+
+        ItemData(query, items[0], fields)
+
+        items[0].entity = entity
+        item.appendRow(items)
+
+
 class ItemData(object):
     ROLE_DATA = QtCore.Qt.UserRole + 100
     ROLE_ENTITY = ROLE_DATA + 1
@@ -49,8 +71,6 @@ class ItemData(object):
         self._query_thread = QueryThread()
         self._query_thread.responsed.connect(self._append_results)
 
-
-
     def _append_results(self, results):
         nrows = self.item.rowCount()
 
@@ -59,21 +79,9 @@ class ItemData(object):
             if not self.item.child(nrows - 1).data(self.ROLE_DATA):
                 self.item.setRowCount(nrows - 1)
 
-        for entity in results:
-            items = [
-                QtGui.QStandardItem(repr_entity(entity, field))
-                for field in self.fields
-            ]
-
-            query = self.query._session.query(
-                query_children_exp(entity),
-                self.query._page_size,
-            )
-
-            ItemData(query, items[0], self.fields)
-
-            items[0].entity = entity
-            self.item.appendRow(items)
+        append_entities(
+            results, self.item, self.fields, self.query._page_size
+        )
 
         if self.query._can_fetch_more():
             self.item.appendRow(QtGui.QStandardItem('...'))
@@ -86,33 +94,36 @@ class ItemData(object):
             return
 
         self._query_thread.do(self.query)
-        
-    def __del__(self):
-        if self._query_thread.isRunning():
-            self._query_thread.terminate()
 
 
-class GeneralModel(QtGui.QStandardItemModel):
+class ListModel(QtGui.QStandardItemModel):
     error = QtCore.Signal(str)
 
-    def __init__(self, session, page_size=DEFAULT_PAGE_SIZE, fields=None,
+    def __init__(self, entities=None, page_size=DEFAULT_PAGE_SIZE, fields=None,
                  parent=None):
-        super(GeneralModel, self).__init__(parent)
-        self._session = session
+        super(ListModel, self).__init__(parent)
         self._page_size = page_size
         self._fields = fields or ['name', 'description']
         self._root_data = None
 
-    def query(self, expression):
+        if entities:
+            self.appendEntities(entities)
+
+    # def indexOfEntity(self, entity):
+    #     for parent in entity['link']:
+    #
+
+    def setEntities(self, entities):
         self.clear()
-        # TODO: projection
-        try:
-            query = self._session.query(expression, self._page_size)
-        except:
-            self.error.emit('Invalid query expression.')
-            return
-        self._root_data = ItemData(query, self.invisibleRootItem(), self._fields)
-        self._root_data.fetch()
+        self.appendEntities(entities)
+
+    def appendEntities(self, entities):
+        append_entities(
+            entities, self.invisibleRootItem(), self._fields, self._page_size
+        )
+
+    def flags(self, index):
+        return super(ListModel, self).flags(index) & ~QtCore.Qt.ItemIsEditable
 
     def columnCount(self, parent):
         return len(self._fields)
@@ -123,7 +134,7 @@ class GeneralModel(QtGui.QStandardItemModel):
             if section < len(self._fields):
                 column = self._fields[section]
                 if role == Qt.DisplayRole:
-                    return column
+                    return column.title()
 
         return None
 
@@ -152,6 +163,7 @@ class GeneralModel(QtGui.QStandardItemModel):
 
     def entity(self, index):
         """Returns the entity at given *index*."""
+        index = self._dataIndex(index)
         return getattr(self.itemFromIndex(index), 'entity', None)
 
     def _loadMore(self, index):
@@ -175,7 +187,27 @@ class GeneralModel(QtGui.QStandardItemModel):
             self._root_data.fetch()
 
 
-class EntityModel(GeneralModel):
+class QueryModel(ListModel):
+    def __init__(self, session, page_size=DEFAULT_PAGE_SIZE, fields=None,
+                 parent=None):
+        super(QueryModel, self).__init__(None, page_size, fields, parent)
+        self._session = session
+        self.expression = None
+
+    def query(self, expression):
+        self.clear()
+        # TODO: projection
+        self.expression = expression
+        try:
+            query = self._session.query(expression, self._page_size)
+        except:
+            self.error.emit('Invalid query expression.')
+            return
+        self._root_data = ItemData(query, self.invisibleRootItem(), self._fields)
+        self._root_data.fetch()
+
+
+class EntityModel(QueryModel):
     def __init__(self, entity=None, page_size=DEFAULT_PAGE_SIZE, fields=None, parent=None):
         super(EntityModel, self).__init__(
             entity and entity.session,
@@ -192,16 +224,12 @@ class EntityModel(GeneralModel):
         self.query(query_children_exp(entity))
 
 
-class QFtrackSortProxy(QtCore.QSortFilterProxyModel):
-    def itemActived(self, index):
-        """Load more unloaded entities."""
-        return self.sourceModel().itemActived(index)
+class SortFilterProxy(QtCore.QSortFilterProxyModel):
+    def __getattr__(self, item):
+        return getattr(self.sourceModel(), item)
 
-    def setCurrentEntity(self, entity):
-        """Set the entity the for model to work on."""
-        return self.sourceModel().setCurrentEntity(entity)
+    def itemActived(self, index):
+        self.sourceModel().itemActived(self.mapToSource(index))
 
     def entity(self, index):
-        """Returns the entity at given *index*."""
-        return self.sourceModel().entity(index)
-
+        return self.sourceModel().entity(self.mapToSource(index))

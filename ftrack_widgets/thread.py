@@ -18,8 +18,8 @@ class QueryThread(QtCore.QThread):
         return self._query._can_fetch_more()
 
     def fetchMore(self):
-        # self.run()
-        self.start()
+        self.run()
+        # self.start()
 
     def run(self):
         if self.canFetchMore():
