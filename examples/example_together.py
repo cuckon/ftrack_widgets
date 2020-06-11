@@ -64,8 +64,7 @@ class DemoDialog(QtWidgets.QDialog):
             self.session, fields=['name', 'comment']
         )
         table.setModel(component_model)
-        # component_model
-        # selector.setModel(proj_model)
+
         return table
 
     def _make_tree(self):
@@ -101,7 +100,6 @@ class DemoDialog(QtWidgets.QDialog):
         self.result_selector.clicked.connect(self.on_change_selection)
         self.result_selector.clicked.connect(self.result_selector.model().itemActived)
         self.treeview.clicked.connect(self.treeview.model().itemActived)
-
 
 
 app = QtWidgets.QApplication([])

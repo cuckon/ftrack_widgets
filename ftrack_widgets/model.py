@@ -21,7 +21,6 @@ def repr_entity(entity, attr):
     if 'name' in value:
         return value['name']
 
-
     return str(value)
 
 
@@ -29,16 +28,20 @@ def query_children_exp(entity):
     query_pattern = {
         'Task': 'AssetVersion where task_id is %s',
         'AssetVersion': 'Component where version_id is %s',
+        'Asset': 'AssetVersion where asset_id is %s',
     }.get(entity.entity_type, 'Context where parent_id is %s')
     return query_pattern % entity['id']
 
 
-def append_entities(entities, item, fields, page_size):
+def append_entities(entities, item, fields, page_size, filter_func):
     if not entities:
         return
     session = entities[0].session
 
     for entity in entities:
+        if not filter_func(entity):
+            continue
+
         items = [
             QtGui.QStandardItem(repr_entity(entity, field))
             for field in fields
@@ -49,7 +52,7 @@ def append_entities(entities, item, fields, page_size):
             page_size,
         )
 
-        ItemData(query, items[0], fields)
+        ItemData(query, items[0], fields, filter_func)
 
         items[0].entity = entity
         item.appendRow(items)
@@ -59,13 +62,14 @@ class ItemData(object):
     ROLE_DATA = QtCore.Qt.UserRole + 100
     ROLE_ENTITY = ROLE_DATA + 1
 
-    def __init__(self, query, item, fields):
+    def __init__(self, query, item, fields, filter_func):
         item.setData(self, self.ROLE_DATA)
 
         self.item = item
         self.fetched = False
         self.fields = fields
         self.query = query
+        self.filter_func = filter_func
 
         self._session = query._session
         self._query_thread = QueryThread()
@@ -80,12 +84,12 @@ class ItemData(object):
                 self.item.setRowCount(nrows - 1)
 
         append_entities(
-            results, self.item, self.fields, self.query._page_size
+            results, self.item, self.fields, self.query._page_size,
+            self.filter_func
         )
 
         if self.query._can_fetch_more():
             self.item.appendRow(QtGui.QStandardItem('...'))
-
 
     def fetch(self):
         self.fetched = True
@@ -105,9 +109,13 @@ class ListModel(QtGui.QStandardItemModel):
         self._page_size = page_size
         self._fields = fields or ['name', 'description']
         self._root_data = None
+        self._filter = lambda x: True
 
         if entities:
             self.appendEntities(entities)
+
+    def setCustomFilter(self, func):
+        self._filter = func
 
     def indexOfEntity(self, entity):
         item = self.invisibleRootItem()
@@ -157,7 +165,8 @@ class ListModel(QtGui.QStandardItemModel):
 
     def appendEntities(self, entities):
         append_entities(
-            entities, self.invisibleRootItem(), self._fields, self._page_size
+            entities, self.invisibleRootItem(), self._fields, self._page_size,
+            self._filter
         )
 
     def flags(self, index):
@@ -243,7 +252,9 @@ class QueryModel(ListModel):
         except:
             self.error.emit('Invalid query expression.')
             return
-        self._root_data = ItemData(query, self.invisibleRootItem(), self._fields)
+        self._root_data = ItemData(
+            query, self.invisibleRootItem(), self._fields, self._filter
+        )
         self._root_data.fetch()
 
 
