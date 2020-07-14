@@ -26,9 +26,9 @@ def repr_entity(entity, attr):
 
 def query_children_exp(entity):
     query_pattern = {
-        'Task': 'AssetVersion where task_id is %s',
+        'Task': 'AssetVersion where task_id is %s by version desc',
         'AssetVersion': 'Component where version_id is %s',
-        'Asset': 'AssetVersion where asset_id is %s',
+        'Asset': 'AssetVersion where asset_id is %s order by version desc',
     }.get(entity.entity_type, 'Context where parent_id is %s')
     return query_pattern % entity['id']
 
